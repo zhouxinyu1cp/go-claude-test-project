@@ -4,10 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
-	"net/url"
-	"strconv"
 	"time"
 
 	"github.com/zhouxinyu1cp/go-claude-test-project/internal/types"
@@ -197,7 +194,7 @@ func (f *Fetcher) Fetch(owner, repo, issueType string, number int) (*types.GitHu
 func (f *Fetcher) doRequest(ctx context.Context, url string) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
@@ -206,7 +203,12 @@ func (f *Fetcher) doRequest(ctx context.Context, url string) (*http.Response, er
 		req.Header.Set("Authorization", "token "+f.token)
 	}
 
-	return f.client.Do(req)
+	resp, err := f.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute request: %w", err)
+	}
+
+	return resp, nil
 }
 
 // JSON 辅助结构
@@ -271,11 +273,11 @@ type githubTime struct {
 func (gt *githubTime) UnmarshalJSON(data []byte) error {
 	var s string
 	if err := json.Unmarshal(data, &s); err != nil {
-		return err
+		return fmt.Errorf("failed to unmarshal time: %w", err)
 	}
 	t, err := time.Parse("2006-01-02T15:04:05Z07:00", s)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to parse time: %w", err)
 	}
 	gt.Time = t
 	return nil
@@ -313,17 +315,3 @@ func convertDiscussionComments(comments []discussionCommentJSON) []types.GitHubC
 	return result
 }
 
-// parseNumber 辅助函数：解析字符串为数字
-func parseNumber(s string) (int, error) {
-	return strconv.Atoi(s)
-}
-
-// urlParse 辅助函数
-func urlParse(rawURL string) (*url.URL, error) {
-	return url.Parse(rawURL)
-}
-
-// ioReadAll 辅助函数
-func ioReadAll(r io.Reader) ([]byte, error) {
-	return io.ReadAll(r)
-}
